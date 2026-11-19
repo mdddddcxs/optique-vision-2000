@@ -227,6 +227,32 @@ td img.t{width:44px;height:44px;border-radius:10px;object-fit:cover}
 .consent{display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:.84rem;line-height:1.4}.consent input{width:20px;height:20px;flex:none;margin-top:1px;padding:0}.consent a{text-decoration:underline;font-weight:700}
 #loc{transition:opacity .35s;white-space:nowrap}#loc.out{opacity:0}
 .legal{display:flex;flex-wrap:wrap;gap:6px 18px}.legal a{text-decoration:underline}
+.bk{gap:18px}
+.bk fieldset{border:0;min-width:0}
+.bk legend{font-weight:800;font-size:.98rem;color:#fff;display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:0}
+.bk legend b{flex:none;width:26px;height:26px;border-radius:50%;background:var(--lime);color:var(--ink);display:grid;place-items:center;font-size:.8rem}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{display:block;position:relative;cursor:pointer;font-weight:600;font-size:.92rem}
+.opt input{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;opacity:0;cursor:pointer}
+.opt span{display:block;padding:11px 16px;border-radius:14px;border:1.5px solid #8a9687;background:#18241a;color:#fff;transition:background .15s,transform .15s,border-color .15s}
+.opt small{display:block;font-weight:400;font-size:.76rem;color:#b8c2b3}
+.opt:hover span{border-color:var(--lime)}
+.opt input:checked+span{background:var(--lime);border-color:var(--lime);color:var(--ink);transform:translateY(-2px)}
+.opt input:checked+span small{color:#26360a}
+.opt input:focus-visible+span{outline:3px solid #fff;outline-offset:2px}
+.days{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;scroll-snap-type:x proximity;scrollbar-width:thin}
+.day{flex:none;scroll-snap-align:start}
+.day span{text-align:center;min-width:64px;padding:9px 8px}
+.day b{display:block;font-size:1.35rem;line-height:1.15}
+.day small{text-transform:uppercase;letter-spacing:.06em}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:8px}
+.opt.sm span{text-align:center;padding:9px 6px}
+.sg{display:grid;gap:8px;margin-bottom:12px}
+.sg>span{font-size:.74rem;text-transform:uppercase;letter-spacing:.1em;color:#b8c2b3;font-weight:700}
+.bkhint{color:#b8c2b3;font-size:.9rem}
+.recap{background:#18241a;border:1px dashed var(--lime);border-radius:14px;padding:12px 16px;font-weight:700;color:#fff}
+@media(prefers-reduced-motion:reduce){.opt span{transition:none}.opt input:checked+span{transform:none}}
+@media(min-width:861px){.rdv>div:first-child{position:sticky;top:96px}}
 </style>
 </head>
 <body>
@@ -286,17 +312,19 @@ td img.t{width:44px;height:44px;border-radius:10px;object-fit:cover}
     <p class="sub">Choisissez le magasin, le jour et l'heure. Vous confirmez ensuite en un message WhatsApp.</p>
     <div class="steps"><div><b>1</b><span>Vous remplissez le formulaire.</span></div><div><b>2</b><span>Vous l'envoyez sur WhatsApp à la boutique.</span></div><div><b>3</b><span>L'équipe vous confirme le créneau.</span></div></div>
   </div>
-  <form class="form" data-form="rdv">
-    <div class="fg">
+  <form class="form bk" data-form="rdv" id="bk">
+    <fieldset><legend><b>1</b>Dans quel magasin ?</legend><div class="opts" id="bkshop"></div></fieldset>
+    <fieldset><legend><b>2</b>Pour quel service ?</legend><div class="opts" id="bksvc"></div></fieldset>
+    <fieldset><legend><b>3</b>Quel jour ?</legend><div class="days" id="bkday"></div></fieldset>
+    <fieldset><legend><b>4</b>À quelle heure ?</legend><div id="bktime"></div></fieldset>
+    <fieldset><legend><b>5</b>Vos coordonnées</legend><div class="fg">
       <label>Votre nom<input name="name" required maxlength="120" autocomplete="name"></label>
       <label>Téléphone<input name="phone" type="tel" required maxlength="40" autocomplete="tel" placeholder="07 00 00 00 00"></label>
-      <label class="full">Service<select name="service" id="rsvc"></select></label>
-      <label class="full">Magasin<select name="shop" id="rshop"></select></label>
-      <label>Date<input name="date" type="date" required id="rdate"></label>
-      <label>Heure<input name="time" type="time" required min="08:00" max="19:00"></label>
       <label class="full">Message (facultatif)<textarea name="note" maxlength="1000"></textarea></label>
-    </div>
-    <label class="consent"><input type="checkbox" name="ok" required><span>J'accepte que les informations saisies soient enregistrées par la boutique et utilisées pour traiter ma demande. <a href="confidentialite.html">Politique de confidentialité</a></span></label><button class="btn lime block">Réserver</button>
+    </div></fieldset>
+    <div class="recap" id="bkrecap" aria-live="polite" hidden></div>
+    <label class="consent"><input type="checkbox" name="ok" required><span>J'accepte que les informations saisies soient enregistrées par la boutique et utilisées pour traiter ma demande. <a href="confidentialite.html">Politique de confidentialité</a></span></label>
+    <button class="btn lime block">Confirmer le rendez-vous</button>
   </form>
 </div></section>
 

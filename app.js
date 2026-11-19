@@ -68,13 +68,36 @@ function watch(){if(chan||!sb.channel)return;
 let locI=0,locT=0;const locLabel=s=>s.name+(/abidjan/i.test(s.address||'')&&!/abidjan/i.test(s.name)?' · Abidjan':'');
 function startLoc(){const e=$('#loc');if(!e||!S.shops.length)return;clearInterval(locT);locI=0;e.textContent=locLabel(S.shops[0]);if(S.shops.length<2)return;
  locT=setInterval(()=>{e.classList.add('out');setTimeout(()=>{locI=(locI+1)%S.shops.length;e.textContent=locLabel(S.shops[locI]);e.classList.remove('out')},350)},3200)}
-function purge(){me=null;isStaff=false;TBL.forEach(k=>S[k]=[]);closeModal();$('#print').innerHTML='';if(chan){try{sb.removeChannel(chan)}catch(e){}chan=null}}
+function purge(){ashop='';me=null;isStaff=false;TBL.forEach(k=>S[k]=[]);closeModal();$('#print').innerHTML='';if(chan){try{sb.removeChannel(chan)}catch(e){}chan=null}}
 async function setUser(u){me=u||null;isStaff=false;if(!me)return;const r=await sb.from('staff').select('user_id').eq('user_id',me.id);isStaff=!r.error&&!!r.data&&r.data.length>0;if(isStaff){await loadPublic();await loadStaff();watch()}}
 function loginView(){return `<form class="form panel" data-form="login" style="max-width:420px;margin:30px auto"><h3>Connexion du personnel</h3>
  ${!sb?'<p class="sub">La base de données est injoignable. Vérifiez votre connexion internet puis rechargez la page.</p>':''}
  ${me&&!isStaff?`<p class="sub">Le compte ${esc(me.email)} existe mais n'est pas encore autorisé à gérer la boutique.</p>`:''}
  <label>E-mail<input name="email" type="email" required autocomplete="username"></label><label>Mot de passe<input name="password" type="password" required autocomplete="current-password"></label>
  <div class="fa"><button class="btn dark">Se connecter</button></div></form>`}
+/* ---------- réservation ---------- */
+let ashop='';
+const DAYS=['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'],JOURS=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'],MONTHS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const closeAt=d=>d===0?0:d===6?15:19;
+const isoUTC=d=>d.toISOString().slice(0,10);
+function slotsFor(iso){const d=new Date(iso+'T00:00:00Z'),c=closeAt(d.getUTCDay()),now=new Date(),isToday=iso===isoUTC(now),min=now.getUTCHours()*60+now.getUTCMinutes()+30,out=[];
+ for(let m=8*60;m<=c*60-30;m+=30)if(!isToday||m>=min)out.push(String(m/60|0).padStart(2,'0')+':'+String(m%60).padStart(2,'0'));return out}
+function nextDays(){const out=[],now=new Date();for(let i=0;out.length<14&&i<30;i++){const d=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()+i)),iso=isoUTC(d);if(slotsFor(iso).length)out.push({iso,d})}return out}
+const longDate=iso=>{const d=new Date(iso+'T00:00:00Z');return JOURS[d.getUTCDay()]+' '+d.getUTCDate()+' '+MONTHS[d.getUTCMonth()]};
+const bkVal=n=>{const r=$(`#bk input[name="${n}"]:checked`);return r?r.value:''};
+const pick=(n,v)=>{const r=$$(`#bk input[name="${n}"]`).find(x=>x.value===v);if(r){r.checked=true;renderRecap()}};
+function renderTimes(keep){const iso=bkVal('date'),z=$('#bktime');if(!iso){z.innerHTML='<p class="bkhint">Choisissez d\'abord un jour : les heures disponibles s\'afficheront ici.</p>';return}
+ const sl=slotsFor(iso),grp=(t,l)=>l.length?`<div class="sg"><span>${t}</span><div class="slots">${l.map(x=>`<label class="opt sm"><input type="radio" name="time" value="${x}" required ${x===keep?'checked':''}><span>${x.replace(':','h')}</span></label>`).join('')}</div></div>`:'';
+ z.innerHTML=grp('Matin',sl.filter(x=>x<'12:00'))+grp('Après-midi',sl.filter(x=>x>='12:00'))}
+function renderRecap(){const s=bkVal('shop'),v=bkVal('service'),d=bkVal('date'),t=bkVal('time'),e=$('#bkrecap');
+ e.textContent=(s&&d&&t)?`${v||'Rendez-vous'} · ${shopName(s)} · ${longDate(d)} à ${t.replace(':','h')}`:'';e.hidden=!e.textContent}
+function renderBooking(){if(!$('#bk'))return;const book=SERVICES.filter(s=>s.book),k={shop:bkVal('shop'),service:bkVal('service'),date:bkVal('date'),time:bkVal('time')};
+ if(!S.shops.some(s=>s.id===k.shop))k.shop=S.shops[0].id;if(!book.some(s=>s.n===k.service))k.service=book[0].n;
+ $('#bkshop').innerHTML=S.shops.map(s=>`<label class="opt"><input type="radio" name="shop" value="${esc(s.id)}" required ${s.id===k.shop?'checked':''}><span>${esc(s.name)}<small>${esc(String(s.address||'').split(' — ')[0])}</small></span></label>`).join('');
+ $('#bksvc').innerHTML=book.map(s=>`<label class="opt"><input type="radio" name="service" value="${esc(s.n)}" required ${s.n===k.service?'checked':''}><span>${esc(s.n)}${s.m?`<small>${s.m}</small>`:''}</span></label>`).join('');
+ const days=nextDays(),t0=isoUTC(new Date());if(!days.some(x=>x.iso===k.date))k.date='';
+ $('#bkday').innerHTML=days.map(({iso,d})=>`<label class="opt day"><input type="radio" name="date" value="${iso}" required ${iso===k.date?'checked':''} aria-label="${longDate(iso)}"><span><small>${iso===t0?'auj.':DAYS[d.getUTCDay()]}</small><b>${d.getUTCDate()}</b><small>${MONTHS[d.getUTCMonth()]}</small></span></label>`).join('');
+ renderTimes(k.time);renderRecap()}
 const shopName=id=>(S.shops.find(s=>s.id===id)||{}).name||'—';
 const wa=t=>'https://wa.me/'+String(S.settings.whatsapp).replace(/\D/g,'')+'?text='+encodeURIComponent(t);
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2600)}
@@ -112,8 +135,7 @@ function renderSite(){
  const m=['Examen de vue','Nettoyage gratuit des verres','Réparation','Conseils après-vente','Livraison gratuite','Verres progressifs'].map(x=>`<span>${x}</span>`).join('');$('#marq').innerHTML=m+m;
  $('#shopimg').src='img/boutique.jpg';
  $('#sv').innerHTML=SERVICES.map(s=>`<article class="sc"><div class="ic"><svg viewBox="0 0 24 24">${ICON[s.i]}</svg></div><h3>${esc(s.n)}${s.free?'<span class="free">Gratuit</span>':''}</h3><p>${esc(s.d)}</p>${s.m?`<div class="meta">${s.m}</div>`:''}${s.book?`<button class="btn sm" data-act="book" data-s="${esc(s.n)}">Réserver</button>`:''}</article>`).join('');
- $('#rsvc').innerHTML=SERVICES.filter(s=>s.book).map(s=>`<option>${esc(s.n)}</option>`).join('');
- $('#rshop').innerHTML=S.shops.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');$('#rdate').min=today();
+ renderBooking();
  $('#shops').innerHTML=S.shops.map(s=>`<article class="shc"><h3>${esc(s.name)}</h3><p>${s.address?esc(s.address):'<span class="todo">Adresse à préciser</span>'}</p><p>${s.phone?`<a href="tel:${esc(s.phone.replace(/\s/g,''))}"><b>${esc(s.phone)}</b></a>`:'<span class="todo">Téléphone à préciser</span>'}</p><button class="btn sm" data-act="bookshop" data-id="${esc(s.id)}" style="justify-self:start">Prendre rendez-vous ici</button></article>`).join('');
  $('#hours').innerHTML=S.settings.hours.split('|').map(x=>`<span>${esc(x)}</span>`).join('');
  $('#faql').innerHTML=FAQ.map(f=>`<details><summary>${f[0]}</summary><p>${f[1]}</p></details>`).join('');
@@ -139,14 +161,14 @@ function renderRing(){let l=live().filter(p=>p.photos.length);if(!l.length){$('#
 const ST={appts:['En attente','Confirmé','Honoré','Annulé'],orders:['Nouvelle','Confirmée','Livrée','Annulée'],repairs:['Reçu','En cours','Prêt','Rendu']};
 const stCls=s=>['Honoré','Livrée','Rendu','Confirmé','Confirmée','Prêt'].includes(s)?'g':['Annulé','Annulée'].includes(s)?'r':'y';
 const ENT={
- orders:{label:'Commandes',one:'commande',cols:['date','name','phone','mode','summary','total','status'],def:()=>({date:today(),status:'Nouvelle',mode:'Livraison gratuite',shop:S.shops[0].id}),
+ orders:{label:'Commandes',one:'commande',cols:['date','name','phone','mode','summary','total','status'],def:()=>({date:today(),status:'Nouvelle',mode:'Livraison gratuite',shop:ashop||S.shops[0].id}),
   fields:[{k:'date',l:'Date',t:'date'},{k:'name',l:'Client',req:1},{k:'phone',l:'Téléphone',t:'tel'},{k:'mode',l:'Mode',t:'select',o:()=>['Livraison gratuite','Retrait en magasin']},{k:'place',l:'Lieu de livraison'},{k:'shop',l:'Magasin',t:'shop'},{k:'summary',l:'Articles',t:'area',full:1},{k:'total',l:'Total (F CFA)',t:'number'},{k:'status',l:'Statut',t:'select',o:()=>ST.orders}]},
- appts:{label:'Rendez-vous',one:'rendez-vous',cols:['date','time','name','phone','service','shop','status'],def:()=>({date:today(),status:'Confirmé',shop:S.shops[0].id}),
+ appts:{label:'Rendez-vous',one:'rendez-vous',cols:['date','time','name','phone','service','shop','status'],def:()=>({date:today(),status:'Confirmé',shop:ashop||S.shops[0].id}),
   fields:[{k:'date',l:'Date',t:'date',req:1},{k:'time',l:'Heure',t:'time'},{k:'name',l:'Client',req:1},{k:'phone',l:'Téléphone',t:'tel'},{k:'service',l:'Service',t:'select',o:()=>SERVICES.map(s=>s.n)},{k:'shop',l:'Magasin',t:'shop'},{k:'status',l:'Statut',t:'select',o:()=>ST.appts},{k:'note',l:'Note',t:'area',full:1}]},
  clients:{label:'Clients',one:'client',cols:['name','phone','city','rx','updated'],def:()=>({}),
   fields:[{k:'name',l:'Nom',req:1},{k:'phone',l:'Téléphone',t:'tel'},{k:'city',l:'Quartier / ville'},{k:'shop',l:'Magasin habituel',t:'shop'},
    {k:'ods',l:'Œil droit — sphère'},{k:'ogs',l:'Œil gauche — sphère'},{k:'odc',l:'Œil droit — cylindre'},{k:'ogc',l:'Œil gauche — cylindre'},{k:'oda',l:'Œil droit — axe'},{k:'oga',l:'Œil gauche — axe'},{k:'addi',l:'Addition'},{k:'ep',l:'Écart pupillaire'},{k:'note',l:'Notes',t:'area',full:1}]},
- repairs:{label:'Réparations',one:'réparation',cols:['date','name','phone','item','problem','shop','price','status'],def:()=>({date:today(),status:'Reçu',shop:S.shops[0].id}),
+ repairs:{label:'Réparations',one:'réparation',cols:['date','name','phone','item','problem','shop','price','status'],def:()=>({date:today(),status:'Reçu',shop:ashop||S.shops[0].id}),
   fields:[{k:'date',l:'Date de dépôt',t:'date'},{k:'name',l:'Client',req:1},{k:'phone',l:'Téléphone',t:'tel'},{k:'item',l:'Lunettes déposées'},{k:'problem',l:'Problème',t:'area',full:1},{k:'shop',l:'Magasin',t:'shop'},{k:'price',l:'Prix (F CFA)',t:'number'},{k:'status',l:'Statut',t:'select',o:()=>ST.repairs}]}};
 const COL={date:'Date',time:'Heure',name:'Client',phone:'Téléphone',service:'Service',shop:'Magasin',status:'Statut',mode:'Mode',summary:'Articles',total:'Total',city:'Quartier',rx:'Correction',updated:'Mis à jour',item:'Lunettes',problem:'Problème',price:'Prix'};
 const TABS=[['dash','Tableau de bord'],['products','Articles'],['orders','Commandes'],['appts','Rendez-vous'],['clients','Clients'],['sales','Ventes'],['repairs','Réparations'],['settings','Magasins et réglages']];
@@ -156,7 +178,7 @@ function cell(k,r,key){const v=r[k];
  if(k==='status')return `<select class="bd ${stCls(v)}" data-st="${key}" data-id="${r.id}" style="width:auto;padding:3px 8px;border:0" aria-label="Statut">${(ST[key].includes(v)?[]:[v]).concat(ST[key]).map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
  if(k==='rx')return (r.ods||r.ogs)?`OD ${esc(r.ods||'—')} · OG ${esc(r.ogs||'—')}`:'—';
  return esc(String(v??'').length>60?String(v).slice(0,60)+'…':v??'')}
-function entBody(k){const E=ENT[k],q=aq.toLowerCase();let rows=S[k].filter(r=>!q||JSON.stringify(r).toLowerCase().includes(q));
+function entBody(k){const E=ENT[k],q=aq.toLowerCase();let rows=S[k].filter(r=>(!ashop||r.shop===ashop)&&(!q||JSON.stringify(r).toLowerCase().includes(q)));
  rows=[...rows].sort((a,b)=>k==='clients'?String(a.name).localeCompare(String(b.name)):((b.date||'')+(b.time||'')).localeCompare((a.date||'')+(a.time||'')));
  return rows.length?`<div class="tw"><table><tr>${E.cols.map(c=>`<th>${COL[c]}</th>`).join('')}</tr>${rows.map(r=>`<tr class="row" data-act="edit" data-k="${k}" data-id="${r.id}">${E.cols.map(c=>`<td>${cell(c,r,k)}</td>`).join('')}</tr>`).join('')}</table></div>`:`<div class="empty">Rien à afficher pour le moment.</div>`}
 function field(f,v){const a=`name="${f.k}" ${f.req?'required':''}`,c=f.full?' class="full"':'';
@@ -187,21 +209,21 @@ function productForm(id){const p=id?S.products.find(x=>x.id===id):{name:'',brand
 function shrink(file){return new Promise(res=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const m=1000,k=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);c.toBlob(res,'image/jpeg',.82)};im.onerror=()=>res(null);im.src=fr.result};fr.onerror=()=>res(null);fr.readAsDataURL(file)})}
 function lineRow(){return `<div class="ln"><select class="lp" aria-label="Article"><option value="">Autre (verres, prestation…)</option>${S.products.map(p=>`<option value="${p.id}" data-p="${p.price}" data-n="${esc(p.name)}">${esc(p.name)}</option>`).join('')}</select><input class="lnm" placeholder="Désignation" aria-label="Désignation"><input class="lq" type="number" min="1" value="1" aria-label="Quantité"><input class="lpr" type="number" min="0" placeholder="Prix" aria-label="Prix unitaire"><button type="button" data-act="lnx" aria-label="Retirer la ligne">✕</button></div>`}
 function saleForm(){openModal(`<form class="form" data-form="sale"><h3>Nouvelle vente</h3><div class="fg">
- <label>Date<input name="date" type="date" value="${today()}" required></label><label>Magasin<select name="shop">${S.shops.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select></label>
+ <label>Date<input name="date" type="date" value="${today()}" required></label><label>Magasin<select name="shop">${S.shops.map(s=>`<option value="${esc(s.id)}" ${s.id===ashop?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label>
  <label>Client<input name="client" list="cls"><datalist id="cls">${S.clients.map(c=>`<option>${esc(c.name)}`).join('')}</datalist></label>
  <label>Paiement<select name="pay"><option>Espèces</option><option>Wave</option><option>Orange Money</option><option>MTN MoMo</option><option>Moov Money</option><option>Carte</option></select></label></div>
  <div id="lines">${lineRow()}</div><button type="button" class="btn sm" data-act="lnadd" style="justify-self:start">+ Ajouter une ligne</button>
  <div class="tot"><span>Total</span><span id="stot">0 F CFA</span></div><div class="fa"><button class="btn dark">Enregistrer la vente</button></div></form>`)}
 function saleTotal(){let t=0;$$('#lines .ln').forEach(l=>t+=(Number($('.lq',l).value)||0)*(Number($('.lpr',l).value)||0));const e=$('#stot');if(e)e.textContent=fmt(t);return t}
 function receipt(s){return `<div class="rec"><h3>Optique Vision 2000</h3><p>${esc(shopName(s.shop))} · ${frDate(s.date)}<br>Reçu n° ${esc(s.id.slice(-6).toUpperCase())}${s.client?'<br>Client : '+esc(s.client):''}</p><table><tr><th>Article</th><th>Qté</th><th>Prix</th><th>Montant</th></tr>${s.items.map(i=>`<tr><td>${esc(i.name)}</td><td>${Number(i.qty)||0}</td><td>${fmt(i.price)}</td><td>${fmt(i.price*i.qty)}</td></tr>`).join('')}</table><p><b>Total : ${fmt(s.total)}</b> · ${esc(s.pay)}</p></div>`}
-function salesBody(){const l=[...S.sales].sort((a,b)=>b.date.localeCompare(a.date));return l.length?`<div class="tw"><table><tr><th>Date</th><th>Magasin</th><th>Client</th><th>Articles</th><th>Paiement</th><th>Total</th></tr>${l.map(s=>`<tr class="row" data-act="rec" data-id="${esc(s.id)}"><td>${frDate(s.date)}</td><td>${esc(shopName(s.shop))}</td><td>${esc(s.client||'—')}</td><td>${esc(s.items.map(i=>i.qty+'× '+i.name).join(', '))}</td><td>${esc(s.pay)}</td><td><b>${fmt(s.total)}</b></td></tr>`).join('')}</table></div>`:'<div class="empty">Aucune vente enregistrée.</div>'}
-function dash(){const t=today(),mo=t.slice(0,7),sum=l=>l.reduce((a,s)=>a+s.total,0);
- const up=S.appts.filter(a=>a.date>=t&&a.status!=='Annulé').sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
- const low=S.products.filter(p=>totalStock(p)<=1);
- return `<div class="kp"><div class="k"><small>Ventes aujourd'hui</small><b>${fmt(sum(S.sales.filter(s=>s.date===t)))}</b></div><div class="k"><small>Ventes ce mois</small><b>${fmt(sum(S.sales.filter(s=>s.date.startsWith(mo))))}</b></div>
- <div class="k"><small>Commandes à traiter</small><b>${S.orders.filter(o=>o.status==='Nouvelle').length}</b></div><div class="k"><small>Rendez-vous à venir</small><b>${up.length}</b></div>
- <div class="k"><small>Réparations en cours</small><b>${S.repairs.filter(r=>r.status!=='Rendu').length}</b></div><div class="k"><small>Clients</small><b>${S.clients.length}</b></div></div>
- <div class="panel"><h3>Ventes du mois par magasin</h3><div class="tw"><table><tr><th>Magasin</th><th>Nombre de ventes</th><th>Montant</th></tr>${S.shops.map(s=>{const l=S.sales.filter(x=>x.shop===s.id&&x.date.startsWith(mo));return `<tr><td>${esc(s.name)}</td><td>${l.length}</td><td><b>${fmt(sum(l))}</b></td></tr>`}).join('')}</table></div></div>
+function salesBody(){const l=S.sales.filter(s=>!ashop||s.shop===ashop).sort((a,b)=>b.date.localeCompare(a.date));return l.length?`<div class="tw"><table><tr><th>Date</th><th>Magasin</th><th>Client</th><th>Articles</th><th>Paiement</th><th>Total</th></tr>${l.map(s=>`<tr class="row" data-act="rec" data-id="${esc(s.id)}"><td>${frDate(s.date)}</td><td>${esc(shopName(s.shop))}</td><td>${esc(s.client||'—')}</td><td>${esc(s.items.map(i=>i.qty+'× '+i.name).join(', '))}</td><td>${esc(s.pay)}</td><td><b>${fmt(s.total)}</b></td></tr>`).join('')}</table></div>`:'<div class="empty">Aucune vente enregistrée.</div>'}
+function dash(){const t=today(),mo=t.slice(0,7),sum=l=>l.reduce((a,s)=>a+s.total,0),F=l=>l.filter(x=>!ashop||x.shop===ashop),SA=F(S.sales),AP=F(S.appts),OR=F(S.orders),RE=F(S.repairs);
+ const up=AP.filter(a=>a.date>=t&&a.status!=='Annulé').sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+ const low=S.products.filter(p=>(ashop?Number(p.stock[ashop])||0:totalStock(p))<=1);
+ return `<div class="kp"><div class="k"><small>Ventes aujourd'hui</small><b>${fmt(sum(SA.filter(s=>s.date===t)))}</b></div><div class="k"><small>Ventes ce mois</small><b>${fmt(sum(SA.filter(s=>s.date.startsWith(mo))))}</b></div>
+ <div class="k"><small>Commandes à traiter</small><b>${OR.filter(o=>o.status==='Nouvelle').length}</b></div><div class="k"><small>Rendez-vous à venir</small><b>${up.length}</b></div>
+ <div class="k"><small>Réparations en cours</small><b>${RE.filter(r=>r.status!=='Rendu').length}</b></div><div class="k"><small>Clients</small><b>${S.clients.length}</b></div></div>
+ <div class="panel"><h3>Les trois magasins en un coup d'œil</h3><div class="tw"><table><tr><th>Magasin</th><th>Rendez-vous aujourd'hui</th><th>Commandes à traiter</th><th>Réparations en cours</th><th>Ventes du jour</th><th>Ventes du mois</th></tr>${S.shops.map(s=>{const sl=S.sales.filter(x=>x.shop===s.id);return `<tr class="row" data-act="ashop" data-id="${esc(s.id)}"><td><b>${esc(s.name)}</b></td><td>${S.appts.filter(a=>a.shop===s.id&&a.date===t&&a.status!=='Annulé').length}</td><td>${S.orders.filter(o=>o.shop===s.id&&o.status==='Nouvelle').length}</td><td>${S.repairs.filter(r=>r.shop===s.id&&r.status!=='Rendu').length}</td><td>${fmt(sum(sl.filter(x=>x.date===t)))}</td><td><b>${fmt(sum(sl.filter(x=>x.date.startsWith(mo))))}</b></td></tr>`}).join('')}</table></div></div>
  <div class="panel"><h3>Prochains rendez-vous</h3>${up.length?`<div class="tw"><table>${up.slice(0,8).map(a=>`<tr class="row" data-act="edit" data-k="appts" data-id="${a.id}"><td>${frDate(a.date)} ${esc(a.time||'')}</td><td>${esc(a.name)}</td><td>${esc(a.service||'')}</td><td>${esc(shopName(a.shop))}</td><td><span class="bd ${stCls(a.status)}">${esc(a.status)}</span></td></tr>`).join('')}</table></div>`:'<div class="empty">Aucun rendez-vous à venir.</div>'}</div>
  <div class="panel"><h3>Stock à surveiller (1 pièce ou moins, tous magasins)</h3>${low.length?low.map(p=>`<span class="bd y" style="margin:3px">${esc(p.name)} : ${totalStock(p)}</span>`).join(''):'<div class="empty">Tous les stocks sont au-dessus du seuil.</div>'}</div>`}
 function settingsView(){return `<form class="form panel" data-form="settings" style="margin-top:0"><h3>Contact et horaires</h3><div class="fg">
@@ -212,7 +234,7 @@ function settingsView(){return `<form class="form panel" data-form="settings" st
  <div class="panel"><h3>Sauvegarde</h3><p class="sub" style="margin:0 0 12px">Téléchargez une copie de toutes les données de la boutique.</p><div class="fa" style="justify-content:flex-start"><button class="btn sm" data-act="export">Télécharger la sauvegarde</button></div></div>`}
 function listView(k,title,body,addAct,addLabel){return `<div class="tb"><h2>${title}</h2><input id="aq" placeholder="Rechercher…" value="${esc(aq)}" aria-label="Rechercher"><button class="btn dark sm" data-act="${addAct}" data-k="${k}">+ ${addLabel}</button></div><div class="panel" style="margin-top:0" id="abody">${body}</div>`}
 function bodyFor(){return tab==='products'?productsBody():tab==='sales'?salesBody():entBody(tab)}
-function renderAdmin(){$('#lo').hidden=!isStaff;$('#sync').textContent=isStaff?'Connecté : '+me.email+'. Les données sont partagées en direct entre les trois magasins.':'Espace réservé au personnel de la boutique.';if(!isStaff){$('#tabs').innerHTML='';$('#am').innerHTML=loginView();return}$('#tabs').innerHTML=TABS.map(t=>`<button class="${t[0]===tab?'on':''}" data-act="tab" data-t="${t[0]}">${t[1]}</button>`).join('');
+function renderAdmin(){$('#lo').hidden=!isStaff;$('#sync').textContent=isStaff?'Connecté : '+me.email+'. Les données sont partagées en direct entre les trois magasins.':'Espace réservé au personnel de la boutique.';if(!isStaff){$('#tabs').innerHTML='';$('#am').innerHTML=loginView();return}$('#tabs').innerHTML=TABS.map(t=>`<button class="${t[0]===tab?'on':''}" data-act="tab" data-t="${t[0]}">${t[1]}</button>`).join('')+`<select id="ashop" aria-label="Magasin affiché" style="width:auto;margin-left:auto;flex:none;border-radius:999px;font-weight:700;padding:8px 14px"><option value="">Tous les magasins</option>${S.shops.map(s=>`<option value="${esc(s.id)}" ${s.id===ashop?'selected':''}>${esc(s.name)}</option>`).join('')}</select>`;
  $('#am').innerHTML=tab==='dash'?dash():tab==='settings'?settingsView():tab==='products'?listView('products','Articles',productsBody(),'pnew','Nouvel article'):tab==='sales'?listView('sales','Ventes',salesBody(),'snew','Nouvelle vente'):listView(tab,ENT[tab].label,entBody(tab),'new','Ajouter')}
 function refresh(){renderSite();if(!$('#admin').hidden)renderAdmin()}
 function route(){const a=location.hash==='#gestion';$('#admin').hidden=!a;$('#site').hidden=a;if(a){renderAdmin();scrollTo(0,0)}}
@@ -227,7 +249,8 @@ const ACT={
  filt(t){filt=t.dataset.c;renderGrid()},
  qty(t){const c=cart.find(x=>x.id===t.dataset.id);c.qty+=Number(t.dataset.d);if(c.qty<1)cart=cart.filter(x=>x!==c);renderCart()},
  gal(t){const k=$('#trk');k.scrollBy({left:Number(t.dataset.d)*k.clientWidth,behavior:'smooth'})},galto(t){const k=$('#trk');k.scrollTo({left:Number(t.dataset.i)*k.clientWidth,behavior:'smooth'})},
- book(t){$('#rsvc').value=t.dataset.s;$('#rdv').scrollIntoView()},bookshop(t){$('#rshop').value=t.dataset.id;$('#rdv').scrollIntoView()},
+ book(t){pick('service',t.dataset.s);$('#rdv').scrollIntoView()},bookshop(t){pick('shop',t.dataset.id);$('#rdv').scrollIntoView()},
+ ashop(t){ashop=t.dataset.id;renderAdmin()},
  admin(){location.hash='#gestion'},site(){location.hash='';route()},
  async logout(){try{await sb.auth.signOut()}catch(e){}purge();await loadPublic();refresh()},
  tab(t){tab=t.dataset.t;aq='';renderAdmin()},
@@ -250,13 +273,15 @@ document.addEventListener('input',e=>{const t=e.target;
  if(t.closest('#lines'))saleTotal()});
 document.addEventListener('change',async e=>{const t=e.target;try{
  if(t.classList.contains('lp')){const o=t.selectedOptions[0],l=t.closest('.ln');$('.lpr',l).value=o.dataset.p||'';$('.lnm',l).value=o.dataset.n||'';saleTotal()}
+ if(t.id==='ashop'){ashop=t.value;renderAdmin()}
+ if(t.closest('#bk')){if(t.name==='date')renderTimes();renderRecap()}
  if(t.dataset.st){await upd(t.dataset.st,t.dataset.id,{status:t.value,updated:today()});refresh()}
  if(t.id==='phin'){const files=[...t.files];t.value='';if(files.length)toast('Envoi des photos…');
   for(const f of files){const blob=await shrink(f);if(!blob)continue;const path=uid()+'.jpg';const {error}=await sb.storage.from('produits').upload(path,blob,{contentType:'image/jpeg'});if(error)throw error;ph.push(sb.storage.from('produits').getPublicUrl(path).data.publicUrl);const z=$('#phs');if(z)z.innerHTML=phView()}}
  }catch(x){fail(x)}});
 document.addEventListener('submit',async e=>{const f=e.target,k=f.dataset.form;if(!k)return;e.preventDefault();const d=formData(f);try{
- if(k==='rdv'){let saved=false;try{if(sb){const {error}=await sb.from('appts').insert({name:d.name,phone:d.phone,service:d.service,shop:d.shop,date:d.date,time:d.time,note:d.note});saved=!error}}catch(x){}
-  f.reset();const msg=`Bonjour Optique Vision 2000, je souhaite un rendez-vous.\nNom : ${d.name}\nTéléphone : ${d.phone}\nService : ${d.service}\nMagasin : ${shopName(d.shop)}\nDate : ${frDate(d.date)} à ${d.time}${d.note?'\nMessage : '+d.note:''}`;
+ if(k==='rdv'){if(!d.date||!d.time)return toast('Choisissez un jour et une heure');let saved=false;try{if(sb){const {error}=await sb.from('appts').insert({name:d.name,phone:d.phone,service:d.service,shop:d.shop,date:d.date,time:d.time,note:d.note});saved=!error}}catch(x){}
+  f.reset();renderBooking();const msg=`Bonjour Optique Vision 2000, je souhaite un rendez-vous.\nNom : ${d.name}\nTéléphone : ${d.phone}\nService : ${d.service}\nMagasin : ${shopName(d.shop)}\nDate : ${frDate(d.date)} à ${d.time}${d.note?'\nMessage : '+d.note:''}`;
   openModal(`<h3>Dernière étape</h3><p class="sub">Votre demande pour le ${frDate(d.date)} à ${esc(d.time)} ${saved?'est enregistrée':'est prête'}. Envoyez-la à la boutique sur WhatsApp pour qu'elle soit confirmée.</p><div class="fa"><a class="btn wa" target="_blank" rel="noopener" href="${wa(msg)}" data-act="close">Envoyer sur WhatsApp</a></div>`,1)}
  if(k==='order'){const items=cart.map(c=>{const p=S.products.find(x=>x.id===c.id);return c.qty+'× '+p.name+' ('+fmt(p.price)+')'}),total=cartTotal();
   let saved=false;try{if(sb){const {error}=await sb.from('orders').insert({name:d.name,phone:d.phone,mode:d.mode,place:d.place,shop:d.shop,summary:items.join(', '),total});saved=!error}}catch(x){}
