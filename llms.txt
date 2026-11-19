@@ -1,0 +1,29 @@
+# Optique Vision 2000
+
+> Magasin d'optique médicale à Abidjan, Côte d'Ivoire : examen de vue, montures, verres correcteurs, réparation et livraison gratuite.
+
+## Informations pratiques
+- Adresse : Cocody Riviera Faya, au feu, Abidjan, Côte d'Ivoire
+- Téléphone et WhatsApp : +225 07 68 71 42 75
+- E-mail : visioncommercial2000@gmail.com
+- Horaires : lundi à vendredi 8h–19h, samedi 8h–15h, fermé le dimanche
+- Monnaie : franc CFA (XOF)
+
+## Services
+- Consultation d'opticien spécialisé : 30 minutes, 5 000 F CFA
+- Examen de vue
+- Nettoyage des verres : gratuit
+- Réparation de lunettes
+- Conseils après-vente
+- Livraison : gratuite
+- Verres unifocaux, bifocaux, progressifs et solaires
+
+## Catalogue
+Le catalogue à jour (montures, accessoires, produits d'entretien, avec prix) est affiché sur la page d'accueil, section « Boutique ». Les commandes et les rendez-vous se confirment par WhatsApp.
+
+## Pages
+- [Accueil](index.html)
+- [Politique de confidentialité](confidentialite.html)
+- [Conditions d'utilisation et mentions légales](conditions.html)
+- [Politique des cookies](cookies.html)
+- [Retours et remboursements](retours.html)
