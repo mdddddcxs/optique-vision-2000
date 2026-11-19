@@ -143,3 +143,6 @@ create policy "staff: ajouter des photos" on storage.objects for insert to authe
 create policy "staff: retirer des photos" on storage.objects for delete to authenticated using (bucket_id = 'produits' and (select private.is_staff()));
 
 alter publication supabase_realtime add table public.products, public.orders, public.appts, public.clients, public.sales, public.repairs, public.shops, public.settings;
+
+-- ---------------------------------------------------------------------------
+-- Migration audit_securite_durcissement (19/11/2026) : appliquée dans Supabase (Database → Migrations) : droits par colonne pour les visiteurs, contraintes, consent_at, fonction record_sale, politiques du stockage
