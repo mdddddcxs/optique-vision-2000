@@ -33,9 +33,9 @@ function seedState(){const st={faya:0,abj2:0,int:0};const P=(name,brand,cat,pric
  const m="Monture optique. Verres unifocaux, bifocaux ou progressifs montés par nos opticiens.";
  return {v:1,
  settings:{whatsapp:'2250768714275',email:'visioncommercial2000@gmail.com',hours:'Lun – Ven : 8h – 19h|Samedi : 8h – 15h|Dimanche : fermé'},
- shops:[{id:'faya',name:'Riviera Faya',address:'Cocody Riviera Faya, au feu — Abidjan',phone:'07 68 71 42 75'},
-        {id:'abj2',name:'Deuxième magasin — Abidjan',address:'',phone:''},
-        {id:'int',name:"Magasin de l'intérieur",address:'',phone:''}],
+ shops:[{id:'faya',name:'Riviera Faya',address:'Riviera, carrefour Faya (au feu) — Cocody, Abidjan',phone:'07 68 71 42 75'},
+        {id:'abj2',name:'Palmeraie',address:"Palmeraie, pharmacie Notre-Dame de l'Incarnation — Abidjan",phone:''},
+        {id:'int',name:'Agboville',address:'Quartier RAN, non loin du CHR — Agboville',phone:''}],
  products:[P('Monture Louis Vuitton','Louis Vuitton','Montures',170000,'louis-vuitton',m),P('Monture Fendi','Fendi','Montures',80000,'fendi',m),
   P('Monture Versace','Versace','Montures',100000,'versace',m),P('Chanel Papillon','Chanel','Montures',70000,'chanel-papillon',m),
   P('Lunette Reese','','Montures',40000,'reese',m),P('Lunette Chanel','Chanel','Montures',40000,'',m),
@@ -65,6 +65,9 @@ const typing=()=>{const a=document.activeElement;return !!a&&$('#am').contains(a
 function watch(){if(chan||!sb.channel)return;
  const run=async()=>{rt=0;rtFirst=0;if(!isStaff)return;await loadPublic();await loadStaff();if(typing())renderSite();else refresh()};
  chan=sb.channel('gestion').on('postgres_changes',{event:'*',schema:'public'},()=>{const now=Date.now();if(!rtFirst)rtFirst=now;clearTimeout(rt);rt=setTimeout(run,now-rtFirst>5000?0:700)}).subscribe()}
+let locI=0,locT=0;const locLabel=s=>s.name+(/abidjan/i.test(s.address||'')&&!/abidjan/i.test(s.name)?' · Abidjan':'');
+function startLoc(){const e=$('#loc');if(!e||!S.shops.length)return;clearInterval(locT);locI=0;e.textContent=locLabel(S.shops[0]);if(S.shops.length<2)return;
+ locT=setInterval(()=>{e.classList.add('out');setTimeout(()=>{locI=(locI+1)%S.shops.length;e.textContent=locLabel(S.shops[locI]);e.classList.remove('out')},350)},3200)}
 function purge(){me=null;isStaff=false;TBL.forEach(k=>S[k]=[]);closeModal();$('#print').innerHTML='';if(chan){try{sb.removeChannel(chan)}catch(e){}chan=null}}
 async function setUser(u){me=u||null;isStaff=false;if(!me)return;const r=await sb.from('staff').select('user_id').eq('user_id',me.id);isStaff=!r.error&&!!r.data&&r.data.length>0;if(isStaff){await loadPublic();await loadStaff();watch()}}
 function loginView(){return `<form class="form panel" data-form="login" style="max-width:420px;margin:30px auto"><h3>Connexion du personnel</h3>
@@ -116,7 +119,7 @@ function renderSite(){
  $('#faql').innerHTML=FAQ.map(f=>`<details><summary>${f[0]}</summary><p>${f[1]}</p></details>`).join('');
  $('#fcontact').innerHTML=`<a href="tel:${esc(S.shops[0].phone.replace(/\s/g,''))}">${esc(S.shops[0].phone)}</a> · <a href="mailto:${esc(S.settings.email)}">${esc(S.settings.email)}</a>`;
  $('#fab').href=wa('Bonjour Optique Vision 2000,');
- renderGrid();renderRing();renderCart();}
+ renderGrid();renderRing();renderCart();startLoc();}
 
 /* carrousel 3D */
 let ang=0,R=240,drag=null,lastTouch=0;

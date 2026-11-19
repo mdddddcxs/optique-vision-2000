@@ -225,13 +225,14 @@ td img.t{width:44px;height:44px;border-radius:10px;object-fit:cover}
 .skip{position:absolute;left:-999px;top:8px;background:var(--lime);color:var(--ink);padding:10px 16px;border-radius:10px;font-weight:800;z-index:100}.skip:focus{left:8px}
 :focus-visible{outline:3px solid var(--ink);outline-offset:2px;box-shadow:0 0 0 2px var(--lime)}
 .consent{display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:.84rem;line-height:1.4}.consent input{width:20px;height:20px;flex:none;margin-top:1px;padding:0}.consent a{text-decoration:underline;font-weight:700}
+#loc{transition:opacity .35s;white-space:nowrap}#loc.out{opacity:0}
 .legal{display:flex;flex-wrap:wrap;gap:6px 18px}.legal a{text-decoration:underline}
 </style>
 </head>
 <body>
 <noscript><div style="padding:24px;max-width:760px;margin:auto">
 <h1>Optique Vision 2000</h1>
-<p>Magasin d'optique médicale à Cocody Riviera Faya, au feu, Abidjan. Téléphone et WhatsApp : 07 68 71 42 75. E-mail : visioncommercial2000@gmail.com.</p>
+<p>Magasin d'optique médicale. Trois adresses : Riviera, carrefour Faya (Abidjan) ; Palmeraie, pharmacie Notre-Dame de l'Incarnation (Abidjan) ; Agboville, quartier RAN, non loin du CHR. Téléphone et WhatsApp : 07 68 71 42 75. E-mail : visioncommercial2000@gmail.com.</p>
 <p>Horaires : du lundi au vendredi de 8h à 19h, le samedi de 8h à 15h, fermé le dimanche.</p>
 <p>Services : consultation d'opticien spécialisé (30 min, 5 000 F CFA), examen de vue, nettoyage gratuit des verres, réparation de lunettes, conseils après-vente, livraison gratuite.</p>
 <p>Le catalogue et la prise de rendez-vous en ligne demandent JavaScript. Vous pouvez aussi commander par téléphone ou WhatsApp.</p>
@@ -241,7 +242,7 @@ td img.t{width:44px;height:44px;border-radius:10px;object-fit:cover}
 <div id="site">
 <a class="skip" href="#top">Aller au contenu</a>
 <header class="top"><div class="wrap nav">
-  <a class="brand" href="#top"><svg viewBox="0 0 38 22" fill="none" stroke="#b9ec2f" stroke-width="2.6"><ellipse cx="9.5" cy="12" rx="7.5" ry="7"/><ellipse cx="28.5" cy="12" rx="7.5" ry="7"/><path d="M17 10c1.2-1.6 2.8-1.6 4 0"/></svg><span>Optique Vision 2000<small>Riviera Faya · Abidjan</small></span></a>
+  <a class="brand" href="#top"><svg viewBox="0 0 38 22" fill="none" stroke="#b9ec2f" stroke-width="2.6"><ellipse cx="9.5" cy="12" rx="7.5" ry="7"/><ellipse cx="28.5" cy="12" rx="7.5" ry="7"/><path d="M17 10c1.2-1.6 2.8-1.6 4 0"/></svg><span>Optique Vision 2000<small id="loc">Riviera Faya · Abidjan</small></span></a>
   <nav class="links"><a href="#boutique">Boutique</a><a href="#services">Services</a><a href="#rdv">Rendez-vous</a><a href="#boutiques">Nos magasins</a><a href="#faq">Questions</a></nav>
   <button class="cartb" data-act="cart">Panier<b id="cc">0</b></button>
 </div></header>
