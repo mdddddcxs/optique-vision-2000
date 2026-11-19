@@ -106,7 +106,7 @@ let lastFocus=null;function closeModal(){$('#ov').classList.remove('on');$('#box
 
 /* ---------- site public ---------- */
 let filt='Tout',qs='',cart=[];
-const live=()=>S.products.filter(p=>p.active!==false);
+const live=()=>S.products.filter(p=>p.active!==false&&p.photos.length>0);
 function thumb(p,cls){return p.photos[0]?`<img ${cls?`class="${cls}"`:''} src="${src(p.photos[0])}" alt="${esc(p.name)}" loading="lazy">`:`<div class="nophoto"><div>${GLASSES}Photo à venir</div></div>`}
 function renderGrid(){const cats=['Tout',...new Set(live().map(p=>p.cat).filter(Boolean))];if(!cats.includes(filt))filt='Tout';
  if(!$('#chips input'))$('#chips').innerHTML='<span id="chipl"></span><input class="search" id="qs" placeholder="Rechercher une monture, une marque…" aria-label="Rechercher">';
@@ -192,7 +192,7 @@ function entForm(k,id){const E=ENT[k],r=id?S[k].find(x=>x.id===id):E.def();
 function totalStock(p){return Object.values(p.stock||{}).reduce((a,b)=>a+(Number(b)||0),0)}
 function productsBody(){const q=aq.toLowerCase(),l=S.products.filter(p=>!q||(p.name+p.brand+p.cat).toLowerCase().includes(q));
  return `<div class="tw"><table><tr><th></th><th>Article</th><th>Catégorie</th><th>Prix</th>${S.shops.map(s=>`<th>Stock ${esc(s.name.split(' ')[0])}</th>`).join('')}<th>Photos</th><th>Sur le site</th></tr>
- ${l.map(p=>`<tr class="row" data-act="pedit" data-id="${p.id}"><td>${p.photos[0]?`<img class="t" src="${src(p.photos[0])}" alt="${esc(p.name)}">`:''}</td><td><b>${esc(p.name)}</b><br><small>${esc(p.brand)}</small></td><td>${esc(p.cat)}</td><td>${fmt(p.price)}</td>${S.shops.map(s=>`<td>${Number(p.stock?.[s.id])||0}</td>`).join('')}<td>${p.photos.length}</td><td><span class="bd ${p.active!==false?'g':'r'}">${p.active!==false?'Visible':'Masqué'}</span></td></tr>`).join('')}</table></div>`}
+ ${l.map(p=>`<tr class="row" data-act="pedit" data-id="${p.id}"><td>${p.photos[0]?`<img class="t" src="${src(p.photos[0])}" alt="${esc(p.name)}">`:''}</td><td><b>${esc(p.name)}</b><br><small>${esc(p.brand)}</small></td><td>${esc(p.cat)}</td><td>${fmt(p.price)}</td>${S.shops.map(s=>`<td>${Number(p.stock?.[s.id])||0}</td>`).join('')}<td>${p.photos.length}</td><td><span class="bd ${p.active===false?'r':p.photos.length?'g':'y'}">${p.active===false?'Masqué':p.photos.length?'Visible':'Masqué : sans photo'}</span></td></tr>`).join('')}</table></div>`}
 let ph=[];
 function phView(){return ph.length?ph.map((x,i)=>`<div class="p"><img src="${src(x)}" alt="Photo ${i+1}"><div><button type="button" data-act="phm" data-i="${i}" data-d="-1" aria-label="Avancer">◀</button><button type="button" data-act="phm" data-i="${i}" data-d="1" aria-label="Reculer">▶</button><button type="button" data-act="phx" data-i="${i}" aria-label="Retirer">✕</button></div></div>`).join(''):'<span class="sub" style="margin:0">Aucune photo pour le moment.</span>'}
 function productForm(id){const p=id?S.products.find(x=>x.id===id):{name:'',brand:'',cat:'Montures',price:'',descr:'',photos:[],stock:{},active:true};ph=[...p.photos];
