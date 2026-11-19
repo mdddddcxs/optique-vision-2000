@@ -70,11 +70,14 @@ function startLoc(){const e=$('#loc');if(!e||!S.shops.length)return;clearInterva
  locT=setInterval(()=>{e.classList.add('out');setTimeout(()=>{locI=(locI+1)%S.shops.length;e.textContent=locLabel(S.shops[locI]);e.classList.remove('out')},350)},3200)}
 function purge(){ashop='';me=null;isStaff=false;TBL.forEach(k=>S[k]=[]);closeModal();$('#print').innerHTML='';if(chan){try{sb.removeChannel(chan)}catch(e){}chan=null}}
 async function setUser(u){me=u||null;isStaff=false;if(!me)return;const r=await sb.from('staff').select('user_id').eq('user_id',me.id);isStaff=!r.error&&!!r.data&&r.data.length>0;if(isStaff){await loadPublic();await loadStaff();watch()}}
-function loginView(){return `<form class="form panel" data-form="login" style="max-width:420px;margin:30px auto"><h3>Connexion du personnel</h3>
+let loginMode='in';
+function loginView(){const up=loginMode==='up';return `<form class="form panel" data-form="${up?'signup':'login'}" style="max-width:440px;margin:30px auto"><h3>${up?'Créer mon compte':'Connexion du personnel'}</h3>
  ${!sb?'<p class="sub">La base de données est injoignable. Vérifiez votre connexion internet puis rechargez la page.</p>':''}
  ${me&&!isStaff?`<p class="sub">Le compte ${esc(me.email)} existe mais n'est pas encore autorisé à gérer la boutique.</p>`:''}
- <label>E-mail<input name="email" type="email" required autocomplete="username"></label><label>Mot de passe<input name="password" type="password" required autocomplete="current-password"></label>
- <div class="fa"><button class="btn dark">Se connecter</button></div></form>`}
+ ${up?`<p class="sub" style="margin:0">Choisissez votre e-mail et un mot de passe d'au moins 10 caractères. Le compte doit ensuite être autorisé par l'administrateur du site.</p>`:''}
+ <label>E-mail<input name="email" type="email" required maxlength="120" autocomplete="username"></label>
+ <label>Mot de passe<input name="password" type="password" required ${up?'minlength="10" autocomplete="new-password"':'autocomplete="current-password"'}></label>
+ <div class="fa" style="justify-content:space-between;align-items:center"><button type="button" class="btn sm" data-act="loginmode">${up?"J'ai déjà un compte":'Première fois ? Créer mon compte'}</button><button class="btn dark">${up?'Créer mon compte':'Se connecter'}</button></div></form>`}
 /* ---------- réservation ---------- */
 let ashop='';
 const DAYS=['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'],JOURS=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'],MONTHS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
@@ -250,7 +253,7 @@ const ACT={
  qty(t){const c=cart.find(x=>x.id===t.dataset.id);c.qty+=Number(t.dataset.d);if(c.qty<1)cart=cart.filter(x=>x!==c);renderCart()},
  gal(t){const k=$('#trk');k.scrollBy({left:Number(t.dataset.d)*k.clientWidth,behavior:'smooth'})},galto(t){const k=$('#trk');k.scrollTo({left:Number(t.dataset.i)*k.clientWidth,behavior:'smooth'})},
  book(t){pick('service',t.dataset.s);$('#rdv').scrollIntoView()},bookshop(t){pick('shop',t.dataset.id);$('#rdv').scrollIntoView()},
- ashop(t){ashop=t.dataset.id;renderAdmin()},
+ ashop(t){ashop=t.dataset.id;renderAdmin()},loginmode(){loginMode=loginMode==='up'?'in':'up';renderAdmin()},
  admin(){location.hash='#gestion'},site(){location.hash='';route()},
  async logout(){try{await sb.auth.signOut()}catch(e){}purge();await loadPublic();refresh()},
  tab(t){tab=t.dataset.t;aq='';renderAdmin()},
@@ -289,6 +292,8 @@ document.addEventListener('submit',async e=>{const f=e.target,k=f.dataset.form;i
   cart=[];renderCart();ACT.cartx();openModal(`<h3>Dernière étape</h3><p class="sub">Votre commande de ${fmt(total)} ${saved?'est enregistrée':'est prête'}. Envoyez-la à la boutique sur WhatsApp pour la confirmer.</p><div class="fa"><a class="btn wa" target="_blank" rel="noopener" href="${wa(msg)}" data-act="close">Envoyer sur WhatsApp</a></div>`,1)}
  if(k==='login'){if(!sb)return toast('Base de données injoignable');const {data,error}=await sb.auth.signInWithPassword({email:d.email,password:d.password});
   if(error)return toast('E-mail ou mot de passe incorrect');await setUser(data.user);renderSite();renderAdmin()}
+ if(k==='signup'){if(!sb)return toast('Base de données injoignable');const {data,error}=await sb.auth.signUp({email:d.email,password:d.password});if(error)return toast('Création impossible : '+error.message);loginMode='in';
+  if(data&&data.session){await setUser(data.user);renderSite();renderAdmin()}else{renderAdmin();openModal(`<h3>Compte créé</h3><p class="sub">Le compte ${esc(d.email)} est enregistré. Il reste à le faire autoriser par l'administrateur du site ; vous pourrez ensuite vous connecter ici.</p>`,1)}}
  if(k==='ent'){const key=f.dataset.k,id=f.dataset.id;ENT[key].fields.forEach(x=>{if((x.t==='date'||x.t==='shop')&&!d[x.k])d[x.k]=null;if(x.t==='number')d[x.k]=Number(d[x.k])||0});d.updated=today();
   if(id)await upd(key,id,d);else await ins(key,{id:uid(),...d});closeModal();refresh();toast('Enregistré')}
  if(k==='product'){const id=f.dataset.id,stock={};S.shops.forEach(s=>stock[s.id]=Math.max(0,Number(d['st_'+s.id])||0));
