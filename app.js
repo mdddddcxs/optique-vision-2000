@@ -307,6 +307,149 @@ document.addEventListener('submit',async e=>{const f=e.target,k=f.dataset.form;i
  if(k==='settings'){const g={id:1,whatsapp:d.whatsapp.replace(/\D/g,''),email:d.email,hours:d.hours};const {error}=await sb.from('settings').upsert(g);if(error)throw error;S.settings=g;
   for(const s of [...S.shops])await upd('shops',s.id,{name:d['n_'+s.id],phone:d['p_'+s.id],address:d['a_'+s.id]});refresh();toast('Réglages enregistrés')}
  }catch(x){fail(x)}});
+/* ---------- statistiques de visite (compteurs anonymes) ---------- */
+function track(kind,key){try{if(sb&&!isStaff)sb.rpc('track',{p_kind:kind,p_key:String(key||'').slice(0,64)}).then(()=>{},()=>{})}catch(e){}}
+function visitSource(){let h='';try{h=document.referrer?new URL(document.referrer).hostname:''}catch(e){}const s=((new URLSearchParams(location.search).get('utm_source')||'')+' '+h).toLowerCase().trim();
+ if(!s||s.includes(location.hostname))return 'Accès direct';if(/google/.test(s))return 'Google';if(/facebook|fb\./.test(s))return 'Facebook';if(/instagram/.test(s))return 'Instagram';if(/whatsapp|wa\.me/.test(s))return 'WhatsApp';if(/tiktok/.test(s))return 'TikTok';return 'Autres sites'}
+setTimeout(()=>{if(isStaff||location.hash==='#gestion')return;track('visit',visitSource());track('device',matchMedia('(max-width:860px)').matches?'Téléphone':'Ordinateur');track('hour',String(new Date().getUTCHours()).padStart(2,'0'))},3500);
+{const v=viewProduct;viewProduct=function(id){track('view',id);return v(id)};const a=addCart;addCart=function(id){track('cart',id);return a(id)}}
+document.addEventListener('submit',e=>{const k=e.target.dataset&&e.target.dataset.form;if(k==='rdv'||k==='order')track(k,'')},true);
+document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href*="wa.me"]');if(a&&!$('#site').hidden)track('wa','')},true);
+
+/* ---------- boutique publique : beaucoup d'articles ---------- */
+let gridN=12;
+{const r=renderGrid;renderGrid=function(){r();const c=$$('#grid .pc');c.forEach((x,i)=>{x.hidden=i>=gridN});const o=$('#more');if(o)o.remove();
+ if(c.length>gridN)$('#grid').insertAdjacentHTML('afterend',`<div id="more" style="text-align:center;margin-top:22px"><button class="btn dark" data-act="more">Voir plus d'articles (${c.length-gridN} restants)</button></div>`)};
+ const f=ACT.filt;ACT.filt=t=>{gridN=12;f(t)};ACT.more=()=>{gridN+=12;renderGrid()}}
+document.addEventListener('input',e=>{if(e.target.id==='qs')gridN=12;if(e.target.id==='aq')ppage=0},true);
+
+/* ---------- gestion : nouvelles rubriques ---------- */
+TBL.push('jobs','expenses');S.jobs=[];S.expenses=[];S.stats=[];
+ST.jobs=['En commande','En montage','Prêt','Livré','Annulé'];
+Object.assign(COL,{frame:'Monture',lens:'Verres',deposit:'Acompte',rest:'Reste à payer',due:'Livraison prévue',cat:'Catégorie',label:'Libellé',amount:'Montant'});
+ENT.jobs={label:'Dossiers lunettes',one:'dossier lunettes',cols:['date','name','phone','frame','lens','shop','total','deposit','rest','due','status'],def:()=>({date:today(),status:'En commande',shop:ashop||S.shops[0].id,lens:'Unifocaux'}),
+ fields:[{k:'date',l:'Date',t:'date'},{k:'name',l:'Client',req:1},{k:'phone',l:'Téléphone',t:'tel'},{k:'shop',l:'Magasin',t:'shop'},{k:'frame',l:'Monture'},{k:'lens',l:'Verres',t:'select',o:()=>['Unifocaux','Bifocaux','Progressifs','Solaires','Sans correction']},{k:'rx',l:'Correction (œil droit / œil gauche)',full:1},{k:'total',l:'Prix total (F CFA)',t:'number'},{k:'deposit',l:'Acompte versé (F CFA)',t:'number'},{k:'due',l:'Livraison prévue',t:'date'},{k:'status',l:'Statut',t:'select',o:()=>ST.jobs},{k:'note',l:'Note',t:'area',full:1}]};
+ENT.expenses={label:'Dépenses',one:'dépense',cols:['date','shop','cat','label','amount'],def:()=>({date:today(),shop:ashop||S.shops[0].id,cat:'Achats de marchandises'}),
+ fields:[{k:'date',l:'Date',t:'date',req:1},{k:'shop',l:'Magasin',t:'shop'},{k:'cat',l:'Catégorie',t:'select',o:()=>['Achats de marchandises','Loyer','Salaires','Électricité et eau','Transport et livraison','Communication','Entretien','Autres']},{k:'label',l:'Libellé',req:1},{k:'amount',l:'Montant (F CFA)',t:'number'}]};
+TABS.length=0;TABS.push(['dash','Tableau de bord'],['orders','Commandes'],['appts','Rendez-vous'],['jobs','Dossiers lunettes'],['sales','Ventes'],['repairs','Réparations'],['clients','Clients'],['products','Articles et stock'],['expenses','Dépenses'],['settings','Réglages']);
+const ICN={dash:'M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-4H4zM14 8h6V4h-6z',orders:'M5 7h14l-1.5 9h-11zM9 7a3 3 0 0 1 6 0M9 20h.01M15 20h.01',appts:'M5 6h14v14H5zM5 10h14M9 3v4M15 3v4',jobs:'M2 13a4 4 0 1 0 8 0 4 4 0 0 0-8 0zM14 13a4 4 0 1 0 8 0 4 4 0 0 0-8 0zM10 12.5c.6-.7 1.4-.7 2 0M2.5 12l2-6M21.5 12l-2-6',sales:'M4 4h16v16l-3-2-2.5 2-2.5-2-2.5 2-2.5-2-3 2zM8 9h8M8 13h5',repairs:'M14.5 6.5a4 4 0 0 0-5.2 5.2L3 18l3 3 6.3-6.3a4 4 0 0 0 5.2-5.2l-2.7 2.7-2.2-.6-.6-2.2z',clients:'M8 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2 20c0-3.3 2.7-6 6-6s6 2.7 6 6M17 11a3 3 0 1 0 0-6M22 20c0-2.8-2-5-5-5.5',products:'M3 8l9-4 9 4v9l-9 4-9-4zM3 8l9 4 9-4M12 12v9',expenses:'M12 3v18M17 7H9.5a2.5 2.5 0 0 0 0 5h5a2.5 2.5 0 0 1 0 5H6',settings:'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2-1.2L14.200 3h-4l-.4 2.600a7 7 0 0 0-2 1.200l-2.300-.9-2 3.400 2 1.500a7 7 0 0 0 0 2.400l-2 1.500 2 3.400 2.300-.9a7 7 0 0 0 2 1.200l.4 2.600h4l.4-2.600a7 7 0 0 0 2-1.200l2.300.9 2-3.400-2-1.500c.07-.4.1-.8.1-1.200z'};
+{const l=loadStaff;loadStaff=async function(){await l();const r=await sb.from('stats').select('*').gte('day',dayISO(34));S.stats=(!r.error&&r.data)||[]}}
+
+function cell(k,r,key){const v=r[k];
+ if(k==='shop')return esc(shopName(v));if(k==='date'||k==='updated'||k==='due')return v?frDate(v):'—';
+ if(k==='total'||k==='price'||k==='deposit'||k==='amount')return v?fmt(v):'—';
+ if(k==='rest'){const n=(Number(r.total)||0)-(Number(r.deposit)||0);return n>0?`<span class="bd y">${fmt(n)}</span>`:'<span class="bd g">Soldé</span>'}
+ if(k==='status')return `<select class="bd ${stCls(v)}" data-st="${key}" data-id="${r.id}" style="width:auto;padding:3px 8px;border:0" aria-label="Statut">${(ST[key].includes(v)?[]:[v]).concat(ST[key]).map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
+ if(k==='rx'&&key==='clients')return (r.ods||r.ogs)?`OD ${esc(r.ods||'—')} · OG ${esc(r.ogs||'—')}`:'—';
+ return esc(String(v??'').length>60?String(v).slice(0,60)+'…':v??'')}
+function listView(k,title,body,addAct,addLabel){return `<div class="tb"><h2>${title}</h2><input id="aq" type="search" placeholder="Rechercher…" value="${esc(aq)}" aria-label="Rechercher"><button class="btn sm" data-act="csv" data-k="${k}">Exporter</button><button class="btn dark sm" data-act="${addAct}" data-k="${k}">+ ${addLabel}</button></div><div class="panel" style="margin-top:0" id="abody">${body}</div>`}
+
+/* ---------- articles et stock : centaines d'articles ---------- */
+let ppage=0,pcat='',pflt='',adminAnim=true;
+const stk=p=>ashop?Number(p.stock[ashop])||0:totalStock(p);
+const zeroStock=()=>Object.fromEntries(S.shops.map(s=>[s.id,0]));
+function productsView(){const cats=[...new Set(S.products.map(p=>p.cat).filter(Boolean))].sort(),o=(v,l)=>`<option value="${v}" ${pflt===v?'selected':''}>${l}</option>`;
+ return `<div class="tb"><h2>Articles et stock <small class="cnt2">${S.products.length}</small></h2><input id="aq" type="search" placeholder="Rechercher un article…" value="${esc(aq)}" aria-label="Rechercher">
+ <select id="pcat" class="fs" aria-label="Catégorie"><option value="">Toutes les catégories</option>${cats.map(c=>`<option ${c===pcat?'selected':''}>${esc(c)}</option>`).join('')}</select>
+ <select id="pflt" class="fs" aria-label="Filtre">${o('','Tous les articles')}${o('low','Stock faible')}${o('nophoto','Sans photo')}${o('noprice','Sans prix')}${o('hidden','Masqués')}</select></div>
+ <div class="tb"><button class="btn dark sm" data-act="pnew">+ Nouvel article</button><button class="btn sm" data-act="pick" data-f="pbulk">Ajouter par photos</button><button class="btn sm" data-act="pick" data-f="pimp">Importer un fichier CSV</button><button class="btn sm" data-act="ptpl">Modèle CSV</button><button class="btn sm" data-act="csv" data-k="products">Exporter</button>
+ <input type="file" id="pbulk" accept="image/*" multiple hidden><input type="file" id="pimp" accept=".csv,text/csv" hidden></div>
+ <div class="panel" style="margin-top:0" id="abody">${productsBody()}</div>`}
+function productsBody(){const q=aq.toLowerCase(),l=S.products.filter(p=>(!q||(p.name+' '+p.brand+' '+p.cat).toLowerCase().includes(q))&&(!pcat||p.cat===pcat)&&(pflt==='low'?stk(p)<=1:pflt==='nophoto'?!p.photos.length:pflt==='hidden'?p.active===false:pflt==='noprice'?!p.price:true));
+ const per=25,pages=Math.max(1,Math.ceil(l.length/per));ppage=Math.max(0,Math.min(ppage,pages-1));const view=l.slice(ppage*per,ppage*per+per),cols=ashop?S.shops.filter(s=>s.id===ashop):S.shops;
+ if(!l.length)return '<div class="empty">Aucun article ne correspond.</div>';
+ return `<div class="tw"><table><tr><th></th><th>Article</th><th>Catégorie</th><th>Prix</th>${cols.map(s=>`<th>Stock ${esc(s.name)}</th>`).join('')}<th>Sur le site</th><th></th></tr>
+ ${view.map(p=>`<tr class="row" data-act="pedit" data-id="${p.id}"><td>${p.photos[0]?`<img class="t" src="${src(p.photos[0])}" alt="${esc(p.name)}" loading="lazy">`:'<span class="nt"></span>'}</td><td><b>${esc(p.name)}</b><br><small>${esc(p.brand)}</small></td><td>${esc(p.cat)}</td><td>${p.price?fmt(p.price):'<span class="bd y">à fixer</span>'}</td>
+ ${cols.map(s=>{const n=Number(p.stock[s.id])||0;return `<td><span class="bd ${n>1?'g':n===1?'y':'r'}">${n}</span></td>`}).join('')}
+ <td><span class="bd ${p.active===false?'r':p.photos.length?'g':'y'}">${p.active===false?'Masqué':p.photos.length?'Visible':'Masqué : sans photo'}</span></td><td><button class="btn sm" data-act="ptransfer" data-id="${p.id}">Transférer</button></td></tr>`).join('')}</table></div>
+ <div class="pg"><button class="btn sm" data-act="ppage" data-d="-1" ${ppage?'':'disabled'}>← Précédent</button><span>Page ${ppage+1} sur ${pages} · ${l.length} article${l.length>1?'s':''}</span><button class="btn sm" data-act="ppage" data-d="1" ${ppage<pages-1?'':'disabled'}>Suivant →</button></div>`}
+function parseCSV(t){t=t.replace(/^﻿/,'');const first=t.split(/\r?\n/)[0]||'',sep=(first.match(/;/g)||[]).length>=(first.match(/,/g)||[]).length?';':',',rows=[];let row=[],cur='',q=false;
+ for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c==='"'){if(t[i+1]==='"'){cur+='"';i++}else q=false}else cur+=c}else if(c==='"')q=true;else if(c===sep){row.push(cur);cur=''}else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur=''}else if(c!=='\r')cur+=c}
+ if(cur||row.length){row.push(cur);rows.push(row)}return rows.filter(r=>r.some(x=>x.trim()))}
+const plain=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+const csvCell=v=>{v=String(v??'');if(/^[=+\-@\t\r]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"'};
+function download(name,rows){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+rows.map(r=>r.map(csvCell).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
+async function importCSV(file){const rows=parseCSV(await file.text());if(rows.length<2)return toast('Le fichier est vide');const head=rows[0].map(plain),col=(...n)=>head.findIndex(h=>n.includes(h)),ci={name:col('nom','name','article','designation'),brand:col('marque','brand'),cat:col('categorie','cat','category'),price:col('prix','price'),descr:col('description','descr')};
+ if(ci.name<0)return toast('Colonne « nom » introuvable : utilisez le modèle CSV');
+ const sc=S.shops.map(s=>({id:s.id,i:head.findIndex(h=>h==='stock '+plain(s.name)||h==='stock_'+s.id)})),gen=col('stock'),num=v=>Number(String(v||'').replace(/[^\d]/g,''))||0;
+ const items=rows.slice(1,1001).map(r=>{const name=(r[ci.name]||'').trim().slice(0,160);if(!name)return null;const stock=zeroStock();sc.forEach(x=>{if(x.i>=0)stock[x.id]=num(r[x.i])});if(gen>=0)stock[ashop||S.shops[0].id]=num(r[gen]);
+  return {id:uid(),name,brand:(r[ci.brand]||'').trim().slice(0,80),cat:(r[ci.cat]||'').trim().slice(0,80)||'Montures',price:num(r[ci.price]),descr:(r[ci.descr]||'').trim().slice(0,4000),photos:[],stock,active:true}}).filter(Boolean);
+ if(!items.length)return toast('Aucune ligne exploitable');need();let done=0;
+ for(let i=0;i<items.length;i+=100){const {data,error}=await sb.from('products').insert(items.slice(i,i+100)).select();if(error)throw error;data.forEach(x=>S.products.unshift(normP(x)));done+=data.length;toast(`Import : ${done} sur ${items.length}`)}
+ refresh();toast(`${done} articles importés. Sans photo, ils restent masqués sur le site.`)}
+async function bulkPhotos(files){need();files=files.slice(0,60);let n=0;for(const f of files){const blob=await shrink(f);if(!blob)continue;const path=uid()+'.jpg',{error}=await sb.storage.from('produits').upload(path,blob,{contentType:'image/jpeg'});if(error)throw error;
+  await ins('products',{id:uid(),name:(f.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ').trim()||'Article').slice(0,160),brand:'',cat:pcat||'Montures',price:0,descr:'',photos:[sb.storage.from('produits').getPublicUrl(path).data.publicUrl],stock:zeroStock(),active:false});n++;toast(`Photos : ${n} sur ${files.length}`)}
+ pflt='hidden';refresh();toast(`${n} articles créés et masqués : complétez le nom et le prix, puis rendez-les visibles.`)}
+function transferForm(id){const p=S.products.find(x=>x.id===id);if(!p)return;const o=sel=>S.shops.map((s,i)=>`<option value="${esc(s.id)}" ${i===sel?'selected':''}>${esc(s.name)} (${Number(p.stock[s.id])||0})</option>`).join('');
+ openModal(`<form class="form" data-form="ptransfer" data-id="${p.id}"><h3>Transférer du stock</h3><p class="sub" style="margin:0">${esc(p.name)}</p><div class="fg"><label>Depuis<select name="from">${o(0)}</select></label><label>Vers<select name="to">${o(1)}</select></label><label>Quantité<input name="qty" type="number" min="1" value="1" required></label></div><div class="fa"><button class="btn dark">Transférer</button></div></form>`,1)}
+function csvExport(k){const sh=r=>shopName(r.shop),F=l=>l.filter(x=>!ashop||x.shop===ashop);let rows;
+ if(k==='products')rows=[['nom','marque','categorie','prix','description',...S.shops.map(s=>'stock '+s.name),'visible']].concat(S.products.map(p=>[p.name,p.brand,p.cat,p.price,p.descr,...S.shops.map(s=>Number(p.stock[s.id])||0),p.active===false?'non':'oui']));
+ else if(k==='sales')rows=[['Date','Magasin','Client','Articles','Paiement','Total']].concat(F(S.sales).map(s=>[s.date,sh(s),s.client,s.items.map(i=>i.qty+'× '+i.name).join(', '),s.pay,s.total]));
+ else{const f=ENT[k].fields;rows=[f.map(x=>x.l)].concat(F(S[k]).map(r=>f.map(x=>x.t==='shop'?shopName(r[x.k]):r[x.k])))}
+ download('optique-vision-2000-'+k+'-'+today()+'.csv',rows);toast('Fichier exporté')}
+
+/* ---------- tableau de bord ---------- */
+const dayISO=n=>{const d=new Date();d.setUTCDate(d.getUTCDate()-n);return isoUTC(d)};
+const statSum=(kind,from,to)=>S.stats.reduce((a,r)=>a+(r.kind===kind&&r.day>=from&&(!to||r.day<=to)?r.n:0),0);
+const statKeys=(kind,from)=>{const o={};S.stats.forEach(r=>{if(r.kind===kind&&r.day>=from)o[r.key]=(o[r.key]||0)+r.n});return Object.entries(o).sort((a,b)=>b[1]-a[1])};
+const barsHTML=(vals,labels,cls,what)=>{const m=Math.max(1,...vals);return `<div class="bars ${cls||''}" role="img" aria-label="${esc(what)} : total ${vals.reduce((a,b)=>a+b,0)}">${vals.map((v,i)=>`<div class="b" title="${esc(labels[i])} : ${v}"><i style="height:${Math.max(2,Math.round(v/m*100))}%"></i></div>`).join('')}</div>`};
+const hbars=(pairs,empty,money)=>{const m=Math.max(1,...pairs.map(p=>p[1]));return pairs.length?pairs.map(p=>`<div class="hb"><span>${esc(p[0])}</span><div><i style="width:${Math.round(p[1]/m*100)}%"></i></div><b>${money?fmt(p[1]):p[1]}</b></div>`).join(''):`<div class="empty">${empty}</div>`};
+const kpi=(l,v,c,money,sub)=>`<div class="k" style="--c:${c}"><small>${l}</small><b data-count="${v}" ${money?'data-money="1"':''}>${money?fmt(v):v}</b>${sub?`<span>${sub}</span>`:''}</div>`;
+function countUp(){if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;$$('#am [data-count]').forEach(e=>{const to=Number(e.dataset.count)||0,money=e.dataset.money,t0=performance.now();if(!to)return;(function f(t){const p=Math.min(1,(t-t0)/700),v=Math.round(to*(1-Math.pow(1-p,3)));e.textContent=money?fmt(v):v;if(p<1)requestAnimationFrame(f)})(t0)})}
+function dash(){const t=today(),mo=t.slice(0,7),sum=(l,k)=>l.reduce((a,s)=>a+(Number(s[k||'total'])||0),0),F=l=>l.filter(x=>!ashop||x.shop===ashop),SA=F(S.sales),AP=F(S.appts),OR=F(S.orders),RE=F(S.repairs),JO=F(S.jobs),EX=F(S.expenses);
+ const up=AP.filter(a=>a.date>=t&&a.status!=='Annulé').sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)),low=S.products.filter(p=>stk(p)<=1),openJ=JO.filter(j=>!['Livré','Annulé'].includes(j.status));
+ const caM=sum(SA.filter(s=>s.date.startsWith(mo))),exM=sum(EX.filter(e=>String(e.date).startsWith(mo)),'amount'),rest=openJ.reduce((a,j)=>a+Math.max(0,(Number(j.total)||0)-(Number(j.deposit)||0)),0),stockVal=S.products.reduce((a,p)=>a+stk(p)*(Number(p.price)||0),0);
+ const days=[...Array(30)].map((_,i)=>dayISO(29-i)),vis=days.map(d=>statSum('visit',d,d)),ca=days.map(d=>sum(SA.filter(s=>s.date===d))),lab=days.map(frDate),d7=dayISO(6),d30=dayISO(29);
+ const v30=statSum('visit',d30),views=statSum('view',d30),carts=statSum('cart',d30),ords=statSum('order',d30),rdvs=statSum('rdv',d30),was=statSum('wa',d30),hours=[...Array(24)].map((_,h)=>S.stats.reduce((a,r)=>a+(r.kind==='hour'&&r.day>=d30&&r.key===String(h).padStart(2,'0')?r.n:0),0));
+ const top=statKeys('view',d30).slice(0,6).map(([id,n])=>[(S.products.find(p=>p.id===id)||{name:'Article retiré'}).name,n]),pay={};SA.filter(s=>s.date===t).forEach(s=>pay[s.pay||'—']=(pay[s.pay||'—']||0)+s.total);
+ const fun=[['Visites',v30],['Fiches articles consultées',views],['Ajouts au panier',carts],['Commandes envoyées',ords],['Rendez-vous demandés',rdvs],['Clics WhatsApp',was]],fm=Math.max(1,v30,views);
+ return `<div class="tb"><h2>Tableau de bord</h2><span class="sub" style="margin:0">${ashop?esc(shopName(ashop)):'Les trois magasins'} · ${frDate(t)}</span></div>
+ <div class="kp">${kpi("Visites aujourd'hui",statSum('visit',t,t),'#1d4e6b',0,'site internet')}${kpi('Visites sur 7 jours',statSum('visit',d7),'#1d4e6b')}${kpi('Visites sur 30 jours',v30,'#1d4e6b')}
+ ${kpi("Ventes aujourd'hui",sum(SA.filter(s=>s.date===t)),'#44650a',1)}${kpi('Ventes du mois',caM,'#44650a',1)}${kpi('Dépenses du mois',exM,'#b45309',1)}${kpi('Résultat du mois',caM-exM,caM-exM<0?'#9f1239':'#0f766e',1,'ventes moins dépenses')}
+ ${kpi('Commandes à traiter',OR.filter(o=>o.status==='Nouvelle').length,'#9f1239')}${kpi('Rendez-vous à venir',up.length,'#0f766e')}${kpi('Dossiers lunettes en cours',openJ.length,'#0f766e')}${kpi('Reste à encaisser',rest,'#b45309',1,'sur les dossiers en cours')}
+ ${kpi('Réparations en cours',RE.filter(r=>r.status!=='Rendu').length,'#1d4e6b')}${kpi('Clients',S.clients.length,'#44650a')}${kpi('Valeur du stock',stockVal,'#44650a',1,'au prix de vente')}</div>
+ <div class="g2"><div class="panel"><h3>Visites du site, 30 derniers jours</h3>${barsHTML(vis,lab,'alt','Visites par jour')}<div class="axis"><span>${lab[0]}</span><span>${lab[29]}</span></div></div>
+ <div class="panel"><h3>Ventes, 30 derniers jours</h3>${barsHTML(ca,lab,'','Ventes par jour en francs CFA')}<div class="axis"><span>${lab[0]}</span><span>${lab[29]}</span></div></div></div>
+ <div class="g2"><div class="panel"><h3>D'où viennent les visiteurs</h3>${hbars(statKeys('visit',d30),'Aucune visite enregistrée pour le moment.')}</div>
+ <div class="panel"><h3>Appareils</h3>${hbars(statKeys('device',d30),'Aucune visite enregistrée pour le moment.')}<h3 style="margin-top:16px">Heures de visite</h3>${barsHTML(hours,hours.map((_,h)=>h+'h'),'alt sm','Visites par heure')}<div class="axis"><span>0h</span><span>12h</span><span>23h</span></div></div></div>
+ <div class="g2"><div class="panel"><h3>Du visiteur à la commande, 30 jours</h3><div class="fun">${fun.map(([l,n])=>`<div style="width:${Math.max(38,Math.round(n/fm*100))}%"><span>${l}</span><b>${n}</b></div>`).join('')}</div></div>
+ <div class="panel"><h3>Articles les plus consultés</h3>${hbars(top,'Aucune fiche consultée pour le moment.')}</div></div>
+ <div class="panel"><h3>Les trois magasins en un coup d'œil</h3><div class="tw"><table><tr><th>Magasin</th><th>Rendez-vous aujourd'hui</th><th>Commandes à traiter</th><th>Dossiers en cours</th><th>Réparations en cours</th><th>Ventes du jour</th><th>Ventes du mois</th><th>Dépenses du mois</th></tr>
+ ${S.shops.map(s=>{const sl=S.sales.filter(x=>x.shop===s.id);return `<tr class="row" data-act="ashop" data-id="${esc(s.id)}"><td><b>${esc(s.name)}</b></td><td>${S.appts.filter(a=>a.shop===s.id&&a.date===t&&a.status!=='Annulé').length}</td><td>${S.orders.filter(o=>o.shop===s.id&&o.status==='Nouvelle').length}</td><td>${S.jobs.filter(j=>j.shop===s.id&&!['Livré','Annulé'].includes(j.status)).length}</td><td>${S.repairs.filter(r=>r.shop===s.id&&r.status!=='Rendu').length}</td><td>${fmt(sum(sl.filter(x=>x.date===t)))}</td><td><b>${fmt(sum(sl.filter(x=>x.date.startsWith(mo))))}</b></td><td>${fmt(sum(S.expenses.filter(e=>e.shop===s.id&&String(e.date).startsWith(mo)),'amount'))}</td></tr>`}).join('')}</table></div></div>
+ <div class="g2"><div class="panel"><h3>Encaissements du jour par mode de paiement</h3>${hbars(Object.entries(pay),"Aucune vente aujourd'hui.",1)}</div>
+ <div class="panel"><h3>Prochains rendez-vous</h3>${up.length?`<div class="tw"><table>${up.slice(0,6).map(a=>`<tr class="row" data-act="edit" data-k="appts" data-id="${a.id}"><td>${frDate(a.date)} ${esc(a.time||'')}</td><td>${esc(a.name)}</td><td>${esc(shopName(a.shop))}</td><td><span class="bd ${stCls(a.status)}">${esc(a.status)}</span></td></tr>`).join('')}</table></div>`:'<div class="empty">Aucun rendez-vous à venir.</div>'}</div></div>
+ <div class="panel"><h3>Stock à surveiller (1 pièce ou moins)</h3>${low.length?low.slice(0,40).map(p=>`<button class="bd y chipb" data-act="pedit" data-id="${p.id}">${esc(p.name)} : ${stk(p)}</button>`).join('')+(low.length>40?`<span class="sub"> et ${low.length-40} autres</span>`:''):'<div class="empty">Tous les stocks sont au-dessus du seuil.</div>'}</div>`}
+function renderAdmin(){$('#lo').hidden=!isStaff;$('#sync').textContent=isStaff?'Connecté : '+me.email+' · données partagées en direct entre les magasins':'Espace réservé au personnel de la boutique.';$('#admin').classList.toggle('in',isStaff);
+ if(!isStaff){$('#tabs').innerHTML='';$('#am').innerHTML=loginView();return}
+ const badge={orders:S.orders.filter(o=>o.status==='Nouvelle').length,appts:S.appts.filter(a=>a.status==='En attente').length,jobs:S.jobs.filter(j=>j.status==='Prêt').length};
+ $('#tabs').innerHTML=`<select id="ashop" aria-label="Magasin affiché"><option value="">Tous les magasins</option>${S.shops.map(s=>`<option value="${esc(s.id)}" ${s.id===ashop?'selected':''}>${esc(s.name)}</option>`).join('')}</select>`+TABS.map(t=>`<button class="${t[0]===tab?'on':''}" data-act="tab" data-t="${t[0]}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICN[t[0]]}"/></svg><span>${t[1]}</span>${badge[t[0]]?`<em>${badge[t[0]]}</em>`:''}</button>`).join('');
+ const am=$('#am');am.classList.toggle('anim',adminAnim);
+ am.innerHTML=tab==='dash'?dash():tab==='settings'?settingsView():tab==='products'?productsView():tab==='sales'?listView('sales','Ventes',salesBody(),'snew','Nouvelle vente'):listView(tab,ENT[tab].label,entBody(tab),'new','Ajouter');
+ if(adminAnim&&tab==='dash')countUp();adminAnim=false}
+{const e=entForm;entForm=function(k,id){e(k,id);const r=id&&S[k].find(x=>x.id===id);if(!r)return;
+ if(k==='jobs'&&r.phone){const a=$('#box a.wa');if(a)a.href='https://wa.me/225'+String(r.phone).replace(/\D/g,'')+'?text='+encodeURIComponent(r.status==='Prêt'?`Bonjour, vos lunettes sont prêtes chez Optique Vision 2000 (${shopName(r.shop)}). Vous pouvez passer les récupérer.`:'Bonjour, ici Optique Vision 2000, au sujet de vos lunettes.')}
+ if(k==='clients'){const same=x=>(r.phone&&x.phone&&String(x.phone).replace(/\D/g,'')===String(r.phone).replace(/\D/g,''))||plain(x.name||x.client)===plain(r.name),li=(l,f)=>l.filter(same).map(f);
+  const h=[...li(S.sales,s=>[s.date,'Vente',s.items.map(i=>i.name).join(', '),fmt(s.total)]),...li(S.jobs,j=>[j.date,'Dossier lunettes',(j.frame||'')+' · '+(j.lens||''),j.status]),...li(S.appts,a=>[a.date,'Rendez-vous',a.service||'',a.status]),...li(S.repairs,x=>[x.date,'Réparation',x.item||'',x.status])].sort((a,b)=>String(b[0]).localeCompare(String(a[0])));
+  $('#box').insertAdjacentHTML('beforeend',`<h3 style="margin-top:22px">Historique du client</h3>${h.length?`<div class="tw"><table>${h.slice(0,30).map(x=>`<tr><td>${frDate(x[0])}</td><td><b>${x[1]}</b></td><td>${esc(x[2])}</td><td>${esc(x[3])}</td></tr>`).join('')}</table></div>`:'<p class="sub">Aucune vente, aucun dossier ni rendez-vous à ce nom.</p>'}`)}}}
+Object.assign(ACT,{pick:t=>$('#'+t.dataset.f).click(),ptransfer:t=>transferForm(t.dataset.id),csv:t=>csvExport(t.dataset.k),
+ ppage(t){ppage+=Number(t.dataset.d);$('#abody').innerHTML=productsBody()},
+ ptpl(){download('modele-articles.csv',[['nom','marque','categorie','prix','description',...S.shops.map(s=>'stock '+s.name)],['Monture exemple','Marque','Montures',25000,'Description courte',...S.shops.map(()=>0)]])}});
+{const t=ACT.tab;ACT.tab=x=>{adminAnim=true;ppage=0;t(x)};const a=ACT.ashop;ACT.ashop=x=>{adminAnim=true;a(x)}}
+document.addEventListener('change',async e=>{const t=e.target;try{
+ if(t.id==='pcat'||t.id==='pflt'){if(t.id==='pcat')pcat=t.value;else pflt=t.value;ppage=0;$('#abody').innerHTML=productsBody()}
+ if(t.id==='pimp'&&t.files[0]){const f=t.files[0];t.value='';await importCSV(f)}
+ if(t.id==='pbulk'&&t.files.length){const f=[...t.files];t.value='';await bulkPhotos(f)}}catch(x){fail(x)}});
+document.addEventListener('submit',async e=>{const f=e.target;if(f.dataset.form!=='ptransfer')return;e.preventDefault();const d=formData(f),p=S.products.find(x=>x.id===f.dataset.id),q=Math.max(1,Number(d.qty)||1);try{
+ if(!p)return;if(d.from===d.to)return toast('Choisissez deux magasins différents');const have=Number(p.stock[d.from])||0;if(q>have)return toast(`Stock insuffisant : ${have} en ${shopName(d.from)}`);
+ await upd('products',p.id,{stock:{...p.stock,[d.from]:have-q,[d.to]:(Number(p.stock[d.to])||0)+q}});closeModal();refresh();toast(`${q} transféré${q>1?'s':''} vers ${shopName(d.to)}`)}catch(x){fail(x)}});
+new MutationObserver(()=>$$('#am tr.row:not([tabindex])').forEach(r=>{r.tabIndex=0})).observe($('#am'),{childList:true,subtree:true});
+document.addEventListener('keydown',e=>{const t=e.target,typingNow=/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName);
+ if((e.key==='Enter'||e.key===' ')&&t.matches&&t.matches('tr.row')){e.preventDefault();t.click();return}
+ if($('#admin').hidden||!isStaff||typingNow||$('#ov').classList.contains('on')||e.ctrlKey||e.metaKey||e.altKey)return;
+ if(e.key==='/'){const q=$('#aq');if(q){e.preventDefault();q.focus()}}
+ if(e.key==='n'||e.key==='N'){const b=$('#am .tb .btn.dark');if(b){e.preventDefault();b.click()}}
+ if(/^[0-9]$/.test(e.key)){const i=e.key==='0'?9:Number(e.key)-1;if(TABS[i]){tab=TABS[i][0];aq='';adminAnim=true;renderAdmin()}}});
+
 addEventListener('hashchange',route);
 (async()=>{renderSite();route();
  try{await loadPublic();if(sb){const {data}=await sb.auth.getSession();await setUser(data&&data.session&&data.session.user);sb.auth.onAuthStateChange(ev=>{if(ev==='SIGNED_OUT'&&me){purge();if(!$('#admin').hidden)renderAdmin();setTimeout(()=>loadPublic().then(renderSite).catch(()=>{}),0)}})}}catch(x){console.warn(x)}
